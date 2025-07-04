@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dropin</title>
+    <script src="https://js.braintreegateway.com/web/dropin/1.44.0/js/dropin.min.js"></script>
+    <script
+      src="http://code.jquery.com/jquery-3.2.1.min.js"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div id="dropin-wrapper">
+      <div id="checkout-message"></div>
+      <div id="dropin-container"></div>
+      <button id="submit-button">Submit payment</button>
+    </div>
+
+    <script>
+      var button = document.querySelector("#submit-button");
+      braintree.dropin.create(
+        {
+          // Insert your tokenization key here
+          authorization: "sandbox_22bnkp94_zdv5fs6kk58q5bzx",
+          container: "#dropin-container",
+        },
+        function (createErr, instance) {
+          button.addEventListener("click", function () {
+            instance.requestPaymentMethod(function (
+              requestPaymentMethodErr,
+              payload
+            ) {
+              // When the user clicks on the 'Submit payment' button
+              // this code will send the encrypted payment information in a variable called a payment method nonce
+              $.ajax({
+                type: "POST",
+                url: "/checkout",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                data: JSON.stringify({ paymentMethodNonce: payload.nonce }),
+              }).done(function (result) {
+                // Tear down the Drop-in UI instance.
+                instance.teardown(function (teardownErr) {
+                  if (teardownErr) {
+                    console.error("Could not tear down Drop-in UI!");
+                  } else {
+                    console.info("Drop-in UI has been torn down!");
+                    // Remove the 'Submit payment' button
+                    $("#submit-button").remove();
+                  }
+                });
+                if (result.success || result.transaction) {
+                  $("#checkout-message").html(
+                    '<h1>Success</h1>Your Drop-in UI is working! Check your <a href="https://sandbox.braintreegateway.com/login">sandbox Control Panel</a> for your test transactions. Refresh to try another transaction.'
+                  );
+                } else {
+                  console.log(result);
+                  $("#checkout-message").html(
+                    "<h1>Error</h1>Check your console."
+                  );
+                }
+              });
+            });
+          });
+        }
+      );
+    </script>
+  </body>
+</html>
