@@ -33,12 +33,9 @@ app.post("/checkout", async (req, res) => {
   try {
     // 1. Cria um cliente e salva o método de pagamento
     const customerResult = await gateway.customer.create({
-      firstName: firstName,
-      email: email,
+      firstName,
+      email,
       paymentMethodNonce: nonce,
-      customFields: {
-        cpf: cpf,
-      },
     });
 
     if (!customerResult.success) {
@@ -46,13 +43,17 @@ app.post("/checkout", async (req, res) => {
       return res.status(500).send(customerResult);
     }
 
+    console.log("Cliente criado com sucesso:", customerResult.customer.id);
+    // paymentToken é o token do método de pagamento salvo e que pode ser reutilizado
     const paymentToken = customerResult.customer.paymentMethods[0].token;
-    console.log("CPF do cliente:", customerResult.customer.customFields.cpf);
 
     // 2. Realiza a transação usando o token salvo
     const transactionResult = await gateway.transaction.sale({
-      amount: amount,
+      amount,
       paymentMethodToken: paymentToken,
+      customFields: {
+        cpf: cpf,
+      },
       options: {
         submitForSettlement: true,
       },
@@ -75,5 +76,5 @@ app.post("/checkout", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Servidor no ar: porta 3000");
+  console.log("Servidor no ar!!!!");
 });
