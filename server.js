@@ -15,28 +15,52 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-app.post("/checkout", (req, res) => {
+app.post("/checkout", async (req, res) => {
   const nonce = req.body.paymentMethodNonce;
-  var amount = parseFloat(req.body.amount).toFixed(2);
+  const amount = parseFloat(req.body.amount).toFixed(2);
 
   console.log("Recebido do frontend:", { nonce, amount });
 
-  gateway.transaction.sale(
-    {
-      amount: amount,
+  try {
+    // 1. Cria um cliente e salva o método de pagamento
+    const customerResult = await gateway.customer.create({
+      firstName: "Cliente Dropin", // opcional
+      email: "cliente@exemplo.com", // opcional
       paymentMethodNonce: nonce,
+    });
+
+    if (!customerResult.success) {
+      console.error("Erro ao criar cliente:", customerResult.message);
+      return res.status(500).send(customerResult);
+    }
+
+    const paymentToken = customerResult.customer.paymentMethods[0].token;
+    console.log("Token de pagamento salvo:", paymentToken);
+    console.log("nome:", customerResult.customer.firstName);
+
+    // 2. Realiza a transação usando o token salvo
+    const transactionResult = await gateway.transaction.sale({
+      amount: amount,
+      paymentMethodToken: paymentToken,
       options: {
         submitForSettlement: true,
       },
-    },
-    (err, result) => {
-      if (err || !result.success) {
-        console.error("Erro na transação:", err, result);
-        return res.status(500).send(err || result);
-      }
-      res.send(result);
+    });
+
+    if (!transactionResult.success) {
+      console.error("Erro na transação:", transactionResult.message);
+      return res.status(500).send(transactionResult);
     }
-  );
+
+    res.send({
+      success: true,
+      transaction: transactionResult.transaction,
+      reusableToken: paymentToken, // você pode guardar esse token para futuras cobranças
+    });
+  } catch (err) {
+    console.error("Erro inesperado:", err);
+    res.status(500).send({ success: false, error: err });
+  }
 });
 
 app.listen(3000, () => {
