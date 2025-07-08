@@ -18,15 +18,27 @@ app.use(express.static("public"));
 app.post("/checkout", async (req, res) => {
   const nonce = req.body.paymentMethodNonce;
   const amount = parseFloat(req.body.amount).toFixed(2);
+  const firstName = req.body.firstName || "Cliente Dropin";
+  const email = req.body.email || "cliente@exemplo.com";
+  const cpf = req.body.cpf || "";
 
-  console.log("Recebido do frontend:", { nonce, amount });
+  console.log("Recebido do frontend:", {
+    nonce,
+    amount,
+    firstName,
+    email,
+    cpf,
+  });
 
   try {
     // 1. Cria um cliente e salva o método de pagamento
     const customerResult = await gateway.customer.create({
-      firstName: "Cliente Dropin", // opcional
-      email: "cliente@exemplo.com", // opcional
+      firstName: firstName,
+      email: email,
       paymentMethodNonce: nonce,
+      customFields: {
+        cpf: cpf,
+      },
     });
 
     if (!customerResult.success) {
@@ -35,8 +47,7 @@ app.post("/checkout", async (req, res) => {
     }
 
     const paymentToken = customerResult.customer.paymentMethods[0].token;
-    console.log("Token de pagamento salvo:", paymentToken);
-    console.log("nome:", customerResult.customer.firstName);
+    console.log("CPF do cliente:", customerResult.customer.customFields.cpf);
 
     // 2. Realiza a transação usando o token salvo
     const transactionResult = await gateway.transaction.sale({
@@ -55,7 +66,7 @@ app.post("/checkout", async (req, res) => {
     res.send({
       success: true,
       transaction: transactionResult.transaction,
-      reusableToken: paymentToken, // você pode guardar esse token para futuras cobranças
+      reusableToken: paymentToken,
     });
   } catch (err) {
     console.error("Erro inesperado:", err);
